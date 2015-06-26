@@ -68,7 +68,7 @@ local function computeSignedResponse(client_secret, time, seq, cmd)
     return sha1.hmac_binary(client_secret, text)
 end
 
-function M.handlePacket(data, respond)
+function M.handlePacket(data, respond, action)
     if #data >= 22 then -- received packets are always at least 22 bytes
         local op = string.byte(data, 1)
 
@@ -117,6 +117,7 @@ function M.handlePacket(data, respond)
                             print("challenge response correct!")
                             local response = string.char(4) .. string.char(cmd) .. struct.pack(">i4>i4", time, seq) .. computeSignedResponse(client_secret, time, seq, cmd)
                             respond(response)
+                            action()
                         else
                             print("challlenge response wrong")
                         end
