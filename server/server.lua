@@ -122,4 +122,5 @@ while true do
         end
     end
 --        udp:sendto(data, ip, port)
+    socket.sleep(0.01)
 end
