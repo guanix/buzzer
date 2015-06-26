@@ -15,6 +15,14 @@ function M.unlock(secret)
             local challenge_hash = crypto.hmac("SHA1", challenge, secret)
             local response = string.char(3) .. string.char(1) .. secret_hash .. time .. seq .. challenge_hash
             conn:send(response)
+        elseif #data == 30 and string.byte(data, 1) == 4 and string.byte(data, 2) == 1 then
+            local text = string.sub(data, 3, 10) .. string.char(1)
+            local code = crypto.hmac("SHA1", text, secret)
+            if code == string.sub(data, 11, 30) then
+                print("confirmation")
+            else
+                print("invalid confirmation")
+            end
         end
     end)
 
