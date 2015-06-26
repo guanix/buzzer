@@ -108,6 +108,9 @@ while true do
                         local challenge_hash = sha1.hmac_binary(client_secret, challenge)
                         if challenge_hash == string.sub(data, 31, 50) then
                             print("challenge response correct!")
+
+                            local response = string.char(4) .. string.char(cmd) .. struct.pack(">i4>i4", time, seq) .. sha1.hmac_binary(client_secret, text)
+                            udp:sendto(response, ip, port)
                         else
                             print("challlenge response wrong")
                         end
