@@ -58,6 +58,16 @@ function M.setup(secret_arg, shared_secrets_arg)
     end
 end
 
+local function computeChallenge(time, seq, cmd)
+    local text = struct.pack(">i4>i4B", time, seq, cmd)
+    return sha1.hmac_binary(secret, text)
+end
+
+local function computeSignedResponse(client_secret, time, seq, cmd)
+    local text = struct.pack(">i4>i4B", time, seq, cmd)
+    return sha1.hmac_binary(client_secret, text)
+end
+
 function M.handlePacket(data, respond)
     if #data >= 22 then -- received packets are always at least 22 bytes
         local op = string.byte(data, 1)
@@ -77,8 +87,7 @@ function M.handlePacket(data, respond)
                     -- calculate challenge
                     local time = os.time()
                     seq = seq + 1       -- increment the sequence number
-                    local text = struct.pack(">i4>i4B", time, seq, cmd)
-                    local challenge = sha1.hmac_binary(secret, text)
+                    local challenge = computeChallenge(time, seq, cmd)
                     local response = string.char(2) .. string.char(cmd) .. struct.pack(">i4", time) .. struct.pack(">i4", seq) .. challenge
                     respond(response)
                 else
@@ -102,13 +111,11 @@ function M.handlePacket(data, respond)
                     if localtime - time < 60 then -- can't be more than a minute old
                         -- verify the challenge signature
                         local seq = struct.unpack(">i4", string.sub(data, 27, 30))
-                        local text = struct.pack(">i4>i4B", time, seq, cmd)
-                        local challenge = sha1.hmac_binary(secret, text)
+                        local challenge = computeChallenge(time, seq, cmd)
                         local challenge_hash = sha1.hmac_binary(client_secret, challenge)
                         if challenge_hash == string.sub(data, 31, 50) then
                             print("challenge response correct!")
-
-                            local response = string.char(4) .. string.char(cmd) .. struct.pack(">i4>i4", time, seq) .. sha1.hmac_binary(client_secret, text)
+                            local response = string.char(4) .. string.char(cmd) .. struct.pack(">i4>i4", time, seq) .. computeSignedResponse(client_secret, time, seq, cmd)
                             respond(response)
                         else
                             print("challlenge response wrong")
