@@ -5,14 +5,14 @@ local secret = "soopersekret"
 -- 1. client-to-server: request challenge
 --		byte 1:     1
 --      byte 2:     1 (for unlock)
---      bytes 3-22: (binary) hash of the shared secret
+--      bytes 3-22: (binary) hash of the SHARED secret
 -- 2. server-to-client: respond with challenge
 --      byte 1:     2
 --      byte 2:     1 (for unlock)
 --      bytes 3-6:  timestamp (unix time_t)
 --      bytes 7-10:  sequence number
 --      bytes 11-30: challenge
---      the challenge is the HMAC of the secret and:
+--      the challenge is the HMAC of the SERVER secret and:
 --          4-byte timestamp (network byte order)
 --          4-byte sequence number (network byte order)
 --          1-byte command 1 (for unlock)
@@ -20,10 +20,19 @@ local secret = "soopersekret"
 -- 3. client-to-server: respond to challenge
 --      byte 1:     3
 --      byte 2:     1 (for unlock)
---      bytes 3-22: (binary) hash of the shared secret
+--      bytes 3-22: (binary) hash of the SHARED secret
 --      bytes 23-26:  timestamp (unix time_t)
 --      bytes 27-30:  sequence number
---      bytes 31-50: hmac of challenge with shared secret
+--      bytes 31-50: hmac of challenge with SHARED secret
+-- 4. server-to-client: op successful
+--      byte 1:     4
+--      byte 2:     1
+--      byte 3-6:   timestamp
+--      byte 7-10:  sequence number
+--      bytes 11-30: hmac with SHARED secret of:
+--          4-byte timestamp
+--          4-byte sequence number
+--          1-byte command
 
 local sha1 = require("sha1")
 local struct = require("struct")
