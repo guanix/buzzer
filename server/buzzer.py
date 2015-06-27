@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-import socket, hashlib, hmac, types, struct, time, sys
+import socket, hashlib, hmac, types, struct, time, sys, os
 
 # We should switch this to CoAP once Guan writes a CoAP stack for Lua
 
@@ -46,13 +46,16 @@ def sha1_hmac(text, secret):
     return hmac.new(secret, text, hashlib.sha1).digest()
 
 class Buzzer():
-    def __init__(self, our_secret, shared_secrets):
+    def __init__(self, our_secret, shared_secrets, action=None):
         assert type(our_secret) == str
         assert type(shared_secrets) == list
 
         self.our_secret = our_secret
         self.shared_secrets = shared_secrets
         self.seq = 0
+        self.action = action
+
+        if action: assert type(action) == types.FunctionType
 
         self.shared_secrets_hashed = {
             sha1(shared_secret): shared_secret
@@ -68,6 +71,7 @@ class Buzzer():
 
     def handle_packet(self, data, respond, action=None):
         assert type(respond) == types.FunctionType
+        if action: assert type(action) == types.FunctionType
 
         # Packets are always less than 22 bytes
         if len(data) < 22: return false
@@ -95,11 +99,11 @@ class Buzzer():
             return self.handle_challenge(data, cmd, respond)
         elif op == 3 and len(data) == 50:
             print("challenge response")
-            return self.handle_response(data, cmd, shared_secret, respond, action)
+            return self.handle_response(data, cmd, shared_secret, respond)
         else:
             print("invalid, op", op, "len", len(data))
 
-    def handle_response(self, data, cmd, shared_secret, respond, action):
+    def handle_response(self, data, cmd, shared_secret, respond):
         current_time = int(float(time.time()))
         (t, seq) = struct.unpack("!ii", data[22:30])
         challenge = self.compute_challenge(t, seq, cmd)
@@ -116,8 +120,10 @@ class Buzzer():
         response = chr(4) + chr(cmd) + struct.pack("!ii", t, seq) + response_hash
         respond(response)
 
-        print("performing action")
-        action()
+        if self.action:
+            print("performing action")
+            self.action()
+    
         return True
 
     def handle_challenge(self, data, cmd, respond):
@@ -148,5 +154,16 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("%s our_secret shared_secret1 [shared_secret2 ..]" % sys.argv[0],
             file=sys.stderr)
-    buzzer = Buzzer(sys.argv[1], sys.argv[2:])
+        sys.exit(1)
+
+    # export gpio37 if not already exported
+    if not os.path.exists('/sys/class/gpio/gpio37'):
+        open("/sys/class/gpio/export", "w").write("37")
+
+    def action():
+        open("/sys/class/gpio/gpio37/direction", "w").write("out")
+        time.sleep(3)
+        open("/sys/class/gpio/gpio37/direction", "w").write("in")
+
+    buzzer = Buzzer(sys.argv[1], sys.argv[2:], action)
     buzzer.listen("0.0.0.0", 4242)
