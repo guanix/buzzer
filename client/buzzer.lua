@@ -1,4 +1,4 @@
-local moduleName = ...
+local moduleName = "buzzer"
 local M = {}
 _G[moduleName] = M
 
